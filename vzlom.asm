@@ -7,24 +7,29 @@ locals @@
 ; it is needed so we can use @@ labels 
 ; inside the Main proc
 Start:  call Main
+        ; std dos interrupt func with 4c00h exits the program
+        mov ax, 4c00h ; DIIIIE
+        int 21h
 
-; --------------------------VZLOM ZHOPI-------------------------
+; ----------------------------------------VZLOM ZHOPI----------------------------------------------
 ; this program will ask you to type in the password, which is
-; hard coded in the code below. If password you type matches
-; the password stated in the code, program prints
-; 'Access Granted'
-; if not it prints 'Access Denied'
+; hard coded in the code below. 
+; If hash of password you type matches
+;         the hash of password stated in the code,
+;         program prints 'Access Granted'
+; if not  it      prints 'Access Denied'
 ; there are two vulnerabilities, coded specially for the opponent to hack
-;   1)  password and the guess user types in the command line is hashed very easily
-;       so you can see in turbodebugger, how hash function works(sums all ascii codes)
-;       and just exploit it, to type incorrect password, but its hash will be equal to 
-;       the correct one.
-;   2)  buffer can overflow easily, as there are no checks to prevent it
+;   1)  buffer can overflow easily, as there are no checks to prevent it
 ;       so you can fill the password buffer with garbage and then rewrite function 
 ;       below it. Coincedentally, that exact function is responsible
 ;       for checking if you have correctly or incorrectly guessed the password
 ;       and prints corresponding string
-; --------------------------------------------------------------
+;   2)  when program calculates hash of password and hash of users guess,
+;       you can type in your hacked guess, when overflow to the hard-coded password
+;       (just type 15 - len_of_your_quess blank symbols)
+;       when you can rewrite password, which happens to be right under the buffer, 
+;       to yours and cause program to calculate hash of your password.
+; -------------------------------------------------------------------------------------------------
 Main proc
         mov dx, offset AskUserPassword
         mov ah, 09h
@@ -53,9 +58,6 @@ Main proc
             inc di
             jmp @@LoopGetPass
         @@LoopExit:
-        
-        ; bx = len of users password
-        mov bx, di
 
         ; si = address of str we want to calculate hash for
         mov si, offset Buffer
@@ -63,30 +65,19 @@ Main proc
 
         ; now in cx we have have of 
         ; users password
-        ; and we save that hash to ax
-        ; to later compare it to Correct Password Hash
-        mov ax, cx
-
-        ; getting hash of Correct Password
-        mov si, offset Password
-        call GetHashInCx
-        ; now in cx is Correct Password Hash
-
-        xor bx, bx
+        ; in PasswordHash var is hash of required passwords
         ; we are comparing those passwords
         ; and if they are equal, in bx is placed 1(Correct Guess)
         ; else in bx is 0(Incorrect Guess)
-        cmp ax, cx
+        cmp cx, PasswordHash
         jne @@SkipBxInc
-        inc bx
+        inc StatusOk
         @@SkipBxInc:
 
         ; print if we gain access or if it is denied
         call StringPrint
 
-        ; std dos interrupt func with 4c00h exits the program
-        mov ax, 4c00h ; DIIIIE
-        int 21h
+        ret
 endp
 
 ; ==================================DATA SEGMENT==================================
@@ -97,26 +88,27 @@ AskUserPassword     db 'Please type your password: $'
 CorrectPassword     db 'Access Granted$'
 IncorrectPassword   db 'Access denied$'
 
+; hard coded password
+PasswordHash        dw 0456h
+
 ; buffer which can overflow 
 ; it is supposed to contain the password,
 ; which user typed in console
 Buffer              db 15 dup('$')
+StatusOk            dw 00h
 
-; hard coded password and its len
-Password            db 'CanYouGuess$'
-
-; ==============================END OF DATA SEGMENT===============================
+; ==============================END OF DATA SEGMENT================================
 
 ;----------------------------------------------
 ; prints whether users password was a correct guess or no
-; IN:		bx 		= 1 if password is correct, 0 if incorrect
+; EXP:		StatusOk = 1 if password is correct, 0 if incorrect
 ; OUT:		prints string to the console
 ; Destroys:	dx, ax
 ;----------------------------------------------
 StringPrint proc
     ; if bx = 0(incorrect) when print IncorrectPassword string
     ; else print CorrectPassword string
-    test bx, bx
+    cmp StatusOk, 00h
     je @@Incorrect
 
     mov dx, offset CorrectPassword
@@ -140,7 +132,6 @@ endp
 ; -------------------------------------------------
 ; returns hash of ds:[si] string to the cx regex
 ; IN:       ds:[si] - str
-;           bx - the len of the str
 ; OUT:      cx - hash of str
 ; DESTR:    CX, SI, BX
 ; -------------------------------------------------
