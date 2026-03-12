@@ -68,7 +68,6 @@ Main proc
         mov ax, cx
 
         ; getting hash of Correct Password
-        mov bx, PasswordLen
         mov si, offset Password
         call GetHashInCx
         ; now in cx is Correct Password Hash
@@ -105,8 +104,6 @@ Buffer              db 15 dup('$')
 
 ; hard coded password and its len
 Password            db 'CanYouGuess$'
-PasswordLenEndLabel:
-PasswordLen         dw offset PasswordLenEndLabel - offset Password - 1
 
 ; ==============================END OF DATA SEGMENT===============================
 
@@ -128,7 +125,6 @@ StringPrint proc
     @@Incorrect:
     mov dx, offset IncorrectPassword
     jmp @@Exit
-
     @@Exit:
 
     ; in dx is the address of the string we chose to print.
@@ -154,17 +150,16 @@ GetHashInCx proc
     xor dx, dx
 
     @@Loop:
+        ; if bx is 0 it means we scanned
+        ; every char in str
+        ; and we can exit the Loop
+        cmp byte ptr ds:[si], '$'
+        je @@ExitLoop
         ; adds to cl ascii code of char in str
         mov dl, ds:[si]
         add cx, dx
         ; when move on to the next char
         inc si
-
-        ; if bx is 0 it means we scanned
-        ; every char in str
-        ; and we can exit the Loop
-        dec bx
-        jz @@ExitLoop
 
         ; else just repeat the process
         ; with the next char
