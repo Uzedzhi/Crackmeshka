@@ -98,14 +98,15 @@ AskUserPassword     db 'Please type your password: $'
 CorrectPassword     db 'Access Granted$'
 IncorrectPassword   db 'Access denied$'
 
-; hard coded password and its len
-Password            db 'CanYouGuess$'
-PasswordLen         dw 11d
-
 ; buffer which can overflow 
 ; it is supposed to contain the password,
 ; which user typed in console
 Buffer              db 15 dup('$')
+
+; hard coded password and its len
+Password            db 'CanYouGuess$'
+PasswordLenEndLabel:
+PasswordLen         dw offset PasswordLenEndLabel - offset Password - 1
 
 ; ==============================END OF DATA SEGMENT===============================
 
